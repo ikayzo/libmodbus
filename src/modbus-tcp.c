@@ -170,11 +170,15 @@ static ssize_t _modbus_tcp_send(modbus_t *ctx, const uint8_t *req, int req_lengt
 }
 
 static int _modbus_tcp_receive(modbus_t *ctx, uint8_t *req) {
-    return _modbus_receive_msg(ctx, req, MSG_INDICATION);
+    return _modbus_receive_msg(ctx, req, MSG_INDICATION, FALSE);
 }
 
 static ssize_t _modbus_tcp_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length) {
     return recv(ctx->s, (char *)rsp, rsp_length, 0);
+}
+
+static int _modbus_tcp_receive_nb(modbus_t *ctx, uint8_t *req) {
+    return _modbus_receive_msg(ctx, req, MSG_INDICATION, TRUE);
 }
 
 static int _modbus_tcp_check_integrity(modbus_t *ctx, uint8_t *msg, const int msg_length)
@@ -494,7 +498,7 @@ int modbus_tcp_listen(modbus_t *ctx, int nb_connection)
     }
 #endif
 
-    new_s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    new_s = socket(PF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
     if (new_s == -1) {
         return -1;
     }
@@ -573,7 +577,7 @@ int modbus_tcp_pi_listen(modbus_t *ctx, int nb_connection)
     ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
     ai_hints.ai_family = AF_UNSPEC;
-    ai_hints.ai_socktype = SOCK_STREAM;
+    ai_hints.ai_socktype = SOCK_STREAM | SOCK_CLOEXEC;
     ai_hints.ai_addr = NULL;
     ai_hints.ai_canonname = NULL;
     ai_hints.ai_next = NULL;
@@ -744,6 +748,7 @@ const modbus_backend_t _modbus_tcp_backend = {
     _modbus_tcp_send_msg_pre,
     _modbus_tcp_send,
     _modbus_tcp_receive,
+    _modbus_tcp_receive_nb,
     _modbus_tcp_recv,
     _modbus_tcp_check_integrity,
     _modbus_tcp_pre_check_confirmation,
@@ -767,6 +772,7 @@ const modbus_backend_t _modbus_tcp_pi_backend = {
     _modbus_tcp_send_msg_pre,
     _modbus_tcp_send,
     _modbus_tcp_receive,
+    _modbus_tcp_receive_nb,
     _modbus_tcp_recv,
     _modbus_tcp_check_integrity,
     _modbus_tcp_pre_check_confirmation,
